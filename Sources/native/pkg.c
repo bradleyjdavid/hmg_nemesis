@@ -474,7 +474,18 @@ static int uninstall_tree(const char *id, int allow_locked) {
     snprintf(meta, sizeof(meta), "%s/NEMESIS.data", root);
     if (is_file(meta) && ini_load(&ini, meta) == 0) have_ini = 1;
     stop_pkg_services(id);
-    if (have_ini) run_named_hook(&ini, root, "preuninstall");
+    if (have_ini) {
+        int rc = run_named_hook(&ini, root, "preuninstall");
+        if (rc != 0) {
+            /* The hook keeps its snapshot when it cannot restore the live
+             * files. Keep the package too, so the uninstall can be retried. */
+            log_msg("preuninstall %s failed rc=%d; package kept", id, rc);
+            fprintf(stderr, "preuninstall failed for %s; package kept\n", id);
+            ini_free(&ini);
+            start_pkg_services(id);
+            return 3;
+        }
+    }
     if (have_ini) pm_uninstall_apks(&ini, root);
     svc_remove_prefix(id);
     if (have_ini) {
@@ -908,7 +919,7 @@ static int strip_qb_hook(void) {
 
 int cmd_wipe(int confirm) {
     pkg_rec *list = NULL;
-    int n = 0, i;
+    int n = 0, i, failed = 0;
     if (!confirm) {
         fprintf(stderr, "usage: nemesis wipe --confirm\n");
         return 1;
@@ -917,9 +928,21 @@ int cmd_wipe(int confirm) {
     log_msg("wipe begin");
     pkg_list_load(&list, &n);
     for (i = 0; i < n; i++) {
-        uninstall_tree(list[i].id, 1);
+        if (uninstall_tree(list[i].id, 1) != 0) {
+            log_msg("wipe: uninstall %s failed", list[i].id);
+            failed++;
+        }
     }
     free(list);
+    if (failed) {
+        /* /data/nemesis/backup still holds the stock files those packages
+         * could not put back. Removing NEMESIS_ROOT now would lose them. */
+        log_msg("wipe aborted: %d package(s) not restored", failed);
+        fprintf(stderr, "wipe aborted: %d package(s) could not restore stock files\n", failed);
+        fprintf(stdout, "wipe aborted\n");
+        fflush(stdout);
+        return 1;
+    }
     purge_manager_dalvik();
     if (remount_system(1) != 0)
         log_msg("wipe: remount /system rw failed errno=%d", errno);

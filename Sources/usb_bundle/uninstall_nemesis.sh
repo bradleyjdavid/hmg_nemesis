@@ -4,9 +4,13 @@ export PATH=/sbin:/vendor/bin:/system/sbin:/system/bin:/system/xbin
 export LD_LIBRARY_PATH=/vendor/lib:/system/lib
 
 if [ -x /system/xbin/nemesis ]; then
-    /system/xbin/nemesis wipe --confirm
-    reboot
-    exit 0
+    if /system/xbin/nemesis wipe --confirm; then
+        reboot
+        exit 0
+    fi
+    # A package could not restore its stock files; NEMESIS and its backups stay.
+    echo "wipe aborted; see /data/nemesis/nemesis.log"
+    exit 1
 fi
 
 QB_RUNTIME=/system/etc/qb_runtime.sh
@@ -45,6 +49,11 @@ if [ -f "$QB_RUNTIME" ] && grep -q "$NEMESIS_QB_MARKER" "$QB_RUNTIME" 2>/dev/nul
     done <"$QB_RUNTIME"
     cp -f "$_tmp" "$QB_RUNTIME" && chmod 644 "$QB_RUNTIME"
     rm -f "$_tmp"
+fi
+# Without the CLI no package hook can run, so stock-file snapshots are kept.
+if [ -d /data/nemesis/backup ] && [ -n "$(ls /data/nemesis/backup 2>/dev/null)" ]; then
+    rm -rf /data/nemesis-backup-kept
+    mv /data/nemesis/backup /data/nemesis-backup-kept
 fi
 rm -rf /data/nemesis /data/local/tmp/nemesis
 reboot

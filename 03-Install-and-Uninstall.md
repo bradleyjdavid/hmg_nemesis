@@ -111,11 +111,22 @@ Without `--confirm` the CLI prints usage and does nothing.
 
 If `/system` stays read-only, wipe prints **`wipe incomplete`** and returns 1; CLI/APK may still be present.
 
-Stock apps are not restored or rewritten. They were never patched.
+If any package's `preuninstall` fails (it could not put its stock files back), wipe prints **`wipe aborted`**, returns 1, and removes nothing else. That package stays installed and `/data/nemesis/backup/` keeps its snapshot, so the stock files are not lost. Fix the cause from the log and run wipe again.
+
+NEMESIS itself never patches stock apps. Packages that do (`projection.tbt`) put the originals back from their snapshot in `preuninstall`.
 
 ### 5.4 `usb_bundle/uninstall_nemesis.sh`
 
-If `/system/xbin/nemesis` exists, it runs `nemesis wipe --confirm` and reboots. If the CLI is already gone, it best-effort remounts, deletes the same `/system` files, strips the QuickBoot marker, and removes `/data/nemesis` and `/data/local/tmp/nemesis`. Prefer the CLI wipe when the binary is still there.
+If `/system/xbin/nemesis` exists, it runs `nemesis wipe --confirm` and reboots only if wipe succeeded; on `wipe aborted` it exits 1 without rebooting. If the CLI is already gone, it best-effort remounts, deletes the same `/system` files, strips the QuickBoot marker, moves `/data/nemesis/backup` to `/data/nemesis-backup-kept` (no package hook can run without the CLI, so those snapshots are the only copy of the stock files), and removes `/data/nemesis` and `/data/local/tmp/nemesis`. Prefer the CLI wipe when the binary is still there.
+
+### 5.5 Checked removal with USB sticks
+
+`examples/usb-stick-backup/` and `examples/usb-stick-verify/` are read-only run scripts ([05](05-Run-Scripts.md)) that keep a copy of the stock files off the unit and check them before wipe.
+
+1. **Before installing packages**, run the backup stick. It writes `NEMESIS-backup-<time>/` with copies of every file NEMESIS and the bundled packages change, their mode, owner and md5, the package snapshots in `/data/nemesis/backup`, and a raw `system.img`.
+2. To remove NEMESIS, first uninstall every package.
+3. Run the verify stick with that archive still on it. It compares the live files with the newest archive and writes `NEMESIS-verify-<time>.txt` (`CHANGED`, `MISSING`, `EXTRA`, `PERMS`).
+4. Wipe only when the report ends with `problems=0`. Verify cannot run after wipe, because wipe removes the USB Handler.
 
 A factory **system image** flash also removes `/system/xbin/nemesis` and the APK.
 
