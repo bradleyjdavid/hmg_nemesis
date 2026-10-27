@@ -4,7 +4,9 @@
 # Requires a user+mount namespace (unshare). Does not touch the host /system.
 set -euo pipefail
 
-ROOT=/home/xwtk/nemesis
+# Repo root, from this file. Inside the private root the repo is bind-mounted
+# at the same path, so this resolves the same there.
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
 ADB_PKG=$ROOT/packages/adb-tcp
 WIFI_PKG=$ROOT/packages/wireless-projection
 
@@ -25,19 +27,20 @@ if [ "${NEMESIS_HOOK_NS:-}" != 1 ]; then
     fi
     NEMESIS_PYLIB=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["stdlib"])')
     NEMESIS_ROOTFS=$(mktemp -d /tmp/nemesis-rootfs.XXXXXX)
-    export NEMESIS_HOOK_NS HOOK_SH NEMESIS_PYLIB NEMESIS_ROOTFS
+    NEMESIS_REPO=$ROOT
+    export NEMESIS_HOOK_NS HOOK_SH NEMESIS_PYLIB NEMESIS_ROOTFS NEMESIS_REPO
     set +e
     unshare --user --map-root-user --mount bash -c '
         set -euo pipefail
         r="$NEMESIS_ROOTFS/r"
         pylib="$NEMESIS_PYLIB"
         mkdir -p "$r/usr/bin" "$r/usr/lib64" "$r/usr/lib/x86_64-linux-gnu" "$r$pylib" \
-            "$r/dev" "$r/system" "$r/data" "$r/tmp" "$r/home/xwtk" "$r/etc"
+            "$r/dev" "$r/system" "$r/data" "$r/tmp" "$r$NEMESIS_REPO" "$r/etc"
         mount --bind /usr/bin "$r/usr/bin"
         mount --bind /usr/lib64 "$r/usr/lib64"
         mount --bind /usr/lib/x86_64-linux-gnu "$r/usr/lib/x86_64-linux-gnu"
         mount --bind "$pylib" "$r$pylib"
-        mount --bind /home/xwtk "$r/home/xwtk"
+        mount --bind "$NEMESIS_REPO" "$r$NEMESIS_REPO"
         for n in null zero urandom random tty; do
             if [ -e "/dev/$n" ]; then
                 touch "$r/dev/$n"
@@ -51,7 +54,7 @@ if [ "${NEMESIS_HOOK_NS:-}" != 1 ]; then
             cp /etc/ld.so.cache "$r/etc/ld.so.cache"
         fi
         printf "%s\n" private > "$r/.nemesis-hook-private"
-        chroot "$r" /bin/bash /home/xwtk/nemesis/tests/pkg_live_snapshot.sh
+        chroot "$r" /bin/bash "$NEMESIS_REPO/tests/pkg_live_snapshot.sh"
     '
     status=$?
     set -e

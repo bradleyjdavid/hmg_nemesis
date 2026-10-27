@@ -18,7 +18,9 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EMU = Path("/home/xwtk/EV6_260507/emulator")
+# The Gen5W emulator is built from a firmware image that is not in this repo.
+EMU_ENV = os.environ.get("NEMESIS_EMU")
+EMU = Path(EMU_ENV or "/home/xwtk/EV6_260507/emulator")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from guest import Guest  # noqa: E402
 
@@ -1063,8 +1065,11 @@ def main() -> None:
     sys.stdout.reconfigure(line_buffering=True)
     native = ROOT / "native/nemesis"
     hello = ROOT / "out/hello.tool.zip"
+    if not EMU_ENV and not EMU.exists():
+        print(f"SKIP: no emulator at {EMU}; set NEMESIS_EMU to run these tests")
+        sys.exit(0)
     if not native.is_file() or not hello.is_file():
-        fail("build native + packages first (make -C /home/xwtk/nemesis)")
+        fail(f"build native + packages first (make -C {ROOT} native packages)")
     if not (EMU / "images/system.qcow2").is_file():
         fail(f"run {EMU}/prepare_images.sh first")
 

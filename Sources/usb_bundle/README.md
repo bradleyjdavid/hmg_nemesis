@@ -8,7 +8,7 @@ DSP OTA drops a single `troubleShooter` member. That script installs the SUID
 ## Install
 
 ```bash
-cd /home/xwtk/nemesis
+cd Sources    # from the repository root
 make
 sh usb_bundle/verify_tars.sh
 ```

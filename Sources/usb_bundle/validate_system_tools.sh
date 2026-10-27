@@ -5,7 +5,7 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/.." && pwd)"
 SYS="${ROOT}/system.ext4"
 if [ ! -f "$SYS" ]; then
-    SYS=/home/xwtk/EV6_260507/system.ext4
+    SYS="${NEMESIS_SYSTEM_EXT4:-/home/xwtk/EV6_260507/system.ext4}"
 fi
 NEMESIS="${ROOT}/native/nemesis"
 
