@@ -13,18 +13,25 @@ native:
 manager:
 	$(MAKE) -C manager
 
-packages: native
+# Package sources that are not in every checkout are built only when present.
+optional_pkg = if [ -d $(1) ]; then python3 tools/make_nemesis_package.py $(1) -o $(2); \
+	else echo "skip $(1): not in this tree"; rm -f $(2); fi
+
+# The zips hold scripts and data only, so they do not need the NDK build.
+packages:
 	mkdir -p out examples/usb-stick-install/packages
 	python3 tools/make_nemesis_package.py packages/usb-handler -o out/usb-handler.zip
 	python3 tools/make_nemesis_package.py examples/package-hello -o out/hello.tool.zip
 	python3 tools/make_nemesis_package.py examples/package-hello-v2 -o out/hello.tool-v2.zip
-	python3 tools/make_nemesis_package.py packages/voicehandler-vr-gates -o out/voicehandler.vr-gates.zip
+	$(call optional_pkg,packages/voicehandler-vr-gates,out/voicehandler.vr-gates.zip)
 	python3 tools/make_nemesis_package.py packages/adb-tcp -o out/adb.tcp.zip
 	python3 tools/make_nemesis_package.py packages/wireless-projection -o out/wireless.projection.zip
-	python3 tools/make_nemesis_package.py packages/busybox -o out/busybox.zip
+	$(call optional_pkg,packages/busybox,out/busybox.zip)
 	cp -f out/hello.tool.zip examples/usb-stick-install/packages/hello.tool.zip
-	mkdir -p examples/usb-stick-voicehandler-vr-gates/packages
-	cp -f out/voicehandler.vr-gates.zip examples/usb-stick-voicehandler-vr-gates/packages/voicehandler.vr-gates.zip
+	if [ -f out/voicehandler.vr-gates.zip ]; then \
+		mkdir -p examples/usb-stick-voicehandler-vr-gates/packages; \
+		cp -f out/voicehandler.vr-gates.zip examples/usb-stick-voicehandler-vr-gates/packages/voicehandler.vr-gates.zip; \
+	fi
 	mkdir -p examples/usb-stick-adb/packages examples/usb-stick-wireless/packages
 	cp -f out/adb.tcp.zip examples/usb-stick-adb/packages/adb.tcp.zip
 	cp -f out/wireless.projection.zip examples/usb-stick-wireless/packages/wireless.projection.zip
