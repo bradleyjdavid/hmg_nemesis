@@ -15,8 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install mksh
-        run: sudo apt-get update && sudo apt-get install -y mksh
+      - name: Install mksh and zlib headers
+        run: sudo apt-get update && sudo apt-get install -y mksh zlib1g-dev
 
       # SetupPress is compiled with -source/-target 1.7, which JDK 20+ rejects.
       - uses: actions/setup-java@v5
@@ -43,6 +43,12 @@ jobs:
 
       - name: adb.tcp and wireless.projection hooks
         run: bash Sources/tests/pkg_live_snapshot.sh
+
+      - name: Uninstall and wipe keep snapshots on a failed restore
+        run: bash Sources/tests/host_wipe_safety.sh
+
+      - name: USB backup and verify sticks round trip
+        run: bash Sources/tests/usb_sticks_roundtrip.sh
 
       - name: Tests that need external inputs skip cleanly
         run: |
