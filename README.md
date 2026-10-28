@@ -2,6 +2,14 @@
 
 Own your car, to its fullest.
 
+> **About this fork.** This is a modified version of [xwtk/hmg_nemesis](https://github.com/xwtk/hmg_nemesis), under the same [AGPL-3.0](LICENSE) license. Changes from upstream (`a030d7c`, 27 Oct 2026):
+>
+> - `nemesis uninstall` and `wipe` no longer delete stock-file backups when a package's restore fails ([03 §5.3](03-Install-and-Uninstall.md)), and `uninstall_nemesis.sh` keeps them when the CLI is gone.
+> - New read-only USB sticks: [backup](Sources/examples/usb-stick-backup/), [verify](Sources/examples/usb-stick-verify/) and [inventory](Sources/examples/usb-stick-inventory/) ([03 §5.5](03-Install-and-Uninstall.md)).
+> - `make packages` works on a fresh clone, tests run from any checkout path, and GitHub Actions runs the host tests, including new ones for wipe safety and the USB sticks.
+>
+> The prebuilt [`ota_package.tar`](ota_package.tar) and [`Packages/`](Packages/) zips are upstream's, unchanged. The native fix takes effect only in a `nemesis` binary rebuilt from this source with the Android NDK (`make -C Sources`).
+
 ### **Support NEMESIS development and research**
 
 You may pledge a small amount to help cover research costs for Gen5W systems as well as NEMESIS development. It is completely optional and is considered as a gratitude for the done work.
