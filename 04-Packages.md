@@ -180,6 +180,8 @@ nemesis uninstall my.tool
 
 Uninstall runs `preuninstall` in `/data/nemesis/apps/<id>/`, removes that package's APKs and services, runs `postuninstall` if the package lists one, then deletes the package directory. `adb.tcp` and `wireless.projection` do not list `postuninstall`. Their snapshot in `/data/nemesis/backup/<id>/` is removed at the end of a successful `preuninstall`.
 
+If `preuninstall` exits non-zero, uninstall stops there: the package stays installed, its services are restarted, and the CLI returns 3 with `preuninstall failed for <id>; package kept`. Run the uninstall again once the cause in the log is fixed.
+
 Locked packages print `package is locked` and stay. Wipe NEMESIS removes everything, including locked.
 
 ---

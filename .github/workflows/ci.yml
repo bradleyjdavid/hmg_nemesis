@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  host-tests:
+    # Host-only checks. The emulator flow needs a Gen5W firmware image that is
+    # not in this repo, so here it only confirms that it skips cleanly.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install mksh and zlib headers
+        run: sudo apt-get update && sudo apt-get install -y mksh zlib1g-dev
+
+      # SetupPress is compiled with -source/-target 1.7, which JDK 20+ rejects.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      - name: Shell syntax (mksh for device scripts)
+        run: bash Sources/tests/lint_shell.sh
+
+      - name: Python syntax
+        run: python3 -m compileall -q Sources
+
+      - name: Build package zips
+        run: make -C Sources packages
+
+      - name: SetupPress
+        run: python3 Sources/tests/setup_press_test.py
+
+      # pkg_live_snapshot.sh runs the hooks in a user+mount namespace. Ubuntu
+      # 24.04 blocks unprivileged user namespaces through AppArmor by default.
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: adb.tcp and wireless.projection hooks
+        run: bash Sources/tests/pkg_live_snapshot.sh
+
+      - name: Uninstall and wipe keep snapshots on a failed restore
+        run: bash Sources/tests/host_wipe_safety.sh
+
+      - name: USB backup and verify sticks round trip
+        run: bash Sources/tests/usb_sticks_roundtrip.sh
+
+      - name: Tests that need external inputs skip cleanly
+        run: |
+          python3 Sources/tests/emu_nemesis_flow.py | tee emu.out
+          grep -q '^SKIP:' emu.out
+          bash Sources/tests/pkg_carplay_session.sh | tee carplay.out
+          grep -q '^SKIP:' carplay.out
